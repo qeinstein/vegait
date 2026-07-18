@@ -95,6 +95,18 @@ func ClientID(next http.Handler) http.Handler {
 	})
 }
 
+// InstanceHeader stamps every response with the serving gateway instance's ID.
+// Behind a load balancer this makes it visible that different instances handle
+// different requests — while rate limits stay accurate via shared Redis state.
+func InstanceHeader(instanceID string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Gateway-Instance", instanceID)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // Chain applies middlewares in order (outermost first).
 func Chain(handler http.Handler, mws ...func(http.Handler) http.Handler) http.Handler {
 	for i := len(mws) - 1; i >= 0; i-- {

@@ -39,17 +39,39 @@ never fully blocked.
 ```
 
 This runs `docker compose up --build`, waits for the gateway to become healthy,
-opens the dashboard, and prints every link. Under the hood it starts:
+opens the dashboard, and prints every link. Under the hood it starts a **cluster**:
 
-| Service       | Port | Description                          |
-|---------------|------|--------------------------------------|
-| Rate Limiter  | 8080 | Gateway proxy endpoint               |
-| Admin + Dashboard | 8081 | REST API, health checks, and the React dashboard |
-| PostgreSQL    | 5432 | Analytics database                   |
-| Redis         | 6379 | Rate-limit state store               |
-| Mock API      | 9090 | Simulated third-party API            |
+| Service            | Port | Description                                             |
+|--------------------|------|---------------------------------------------------------|
+| **nginx LB**       | 8080 / 8081 | Single public entry point — load-balances both gateway instances |
+| Gateway instance 1 | (internal) | Stateless rate-limiter (`X-Gateway-Instance: gateway-1`) |
+| Gateway instance 2 | (internal) | Stateless rate-limiter (`X-Gateway-Instance: gateway-2`) |
+| PostgreSQL         | 5432 | Analytics database                                      |
+| Redis              | 6379 | Shared rate-limit state store                           |
+| Mock API           | 9090 | Simulated third-party API                               |
 
-Then open **http://localhost:8081** for the dashboard.
+Port **8080** is the gateway proxy endpoint; **8081** is the Admin API + React
+dashboard. Both are served by **two gateway instances behind an nginx load
+balancer** — open **http://localhost:8081** for the dashboard.
+
+### It really runs as a cluster
+
+The two gateway instances are stateless and share one Redis, so a rate-limit
+check is accurate no matter which instance handles the request. Every response
+carries an `X-Gateway-Instance` header so you can see it:
+
+```bash
+# 14 requests to client-alpha (10/10s) through the load balancer — exactly 10
+# pass even though they land on different instances:
+for i in $(seq 1 14); do
+  curl -s -D - -o /dev/null -H 'X-Client-ID: client-alpha' \
+    http://localhost:8080/proxy/test | grep -iE 'HTTP/|X-Gateway-Instance'
+done
+# → 10× 200 then 4× 429, served by gateway-1 AND gateway-2.
+
+# Scale to more instances:
+docker compose up -d --scale rate-limiter-1=2 --scale rate-limiter-2=2
+```
 
 > Prefer the raw command? `docker compose up --build` works exactly the same —
 > `run.sh` just adds health-waiting and prints the links.
@@ -210,7 +232,8 @@ curl "http://localhost:8081/api/analytics/summary?client_id=client-gamma&days=1"
 .
 ├── run.sh · demo.sh · loadtest.sh    # one-command run, functional demo, load test
 ├── docker-compose.yml · Dockerfile   # full-stack orchestration (single command)
-├── architecture.png · sequence.png   # system + request-flow diagrams
+├── nginx/nginx.conf                  # load balancer across the gateway cluster
+├── architecture.{png,jpg} · sequence.{png,jpg}   # system + request-flow diagrams
 ├── docs/GEMINI_ARCHITECTURE_PROMPT.md
 ├── backend/                          # Go service
 │   ├── cmd/server/main.go            # gateway + admin entrypoint
@@ -236,6 +259,7 @@ curl "http://localhost:8081/api/analytics/summary?client_id=client-gamma&days=1"
 
 | Decision | Rationale |
 |---------|-----------|
+| **Clustered gateway behind a load balancer** | Two stateless instances share Redis, so limits are accurate regardless of which instance serves a request (proven under concurrency). Scale out with `--scale`. |
 | **Sliding-window counter** (not fixed window) | Prevents burst-at-boundary attacks where a fixed window allows 2× the limit around resets. |
 | **Redis Lua scripts** | Atomic check-and-increment — no race conditions regardless of how many gateway instances run. |
 | **Circuit breaker + local fallback** | If Redis fails, fail *open* with a local token bucket instead of blocking all traffic. |

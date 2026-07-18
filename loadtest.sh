@@ -28,10 +28,11 @@ if command -v go >/dev/null 2>&1; then
   echo "${SLATE}Running load generator locally (go run)...${R}"
   ( cd backend && GOWORK=off go run ./cmd/loadgen "${ARGS[@]}" )
 else
-  # Fall back to the loadgen binary shipped inside the gateway container.
+  # Fall back to the loadgen binary shipped inside a gateway container, targeting
+  # the load balancer so traffic is spread across the whole cluster.
   if docker compose version >/dev/null 2>&1; then DC="docker compose"; else DC="docker-compose"; fi
-  echo "${SLATE}Go not found on host — running loadgen inside the container...${R}"
-  $DC exec -T rate-limiter /app/loadgen "${ARGS[@]}"
+  echo "${SLATE}Go not found on host — running loadgen inside the cluster...${R}"
+  $DC exec -T rate-limiter-1 /app/loadgen -url http://gateway-lb:8080 "${ARGS[@]}"
 fi
 
 echo

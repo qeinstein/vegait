@@ -26,6 +26,7 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 	log.Printf("Configuration loaded: %s", cfg)
+	log.Printf("Gateway instance ID: %s", cfg.InstanceID)
 
 	// Initialize database connections
 	dbc, err := database.Init(cfg)
@@ -53,7 +54,7 @@ func main() {
 
 	gatewayServer := &http.Server{
 		Addr:         ":" + cfg.ServerPort,
-		Handler:      middleware.Chain(gatewayMux, middleware.Recovery, middleware.AccessLog, middleware.RequestID, middleware.ClientID),
+		Handler:      middleware.Chain(gatewayMux, middleware.Recovery, middleware.AccessLog, middleware.RequestID, middleware.InstanceHeader(cfg.InstanceID), middleware.ClientID),
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 	}
@@ -76,7 +77,7 @@ func main() {
 
 	adminServer := &http.Server{
 		Addr:         ":" + cfg.AdminPort,
-		Handler:      middleware.Chain(adminMux, middleware.Recovery, middleware.AccessLog, middleware.CORS, middleware.RequestID),
+		Handler:      middleware.Chain(adminMux, middleware.Recovery, middleware.AccessLog, middleware.CORS, middleware.RequestID, middleware.InstanceHeader(cfg.InstanceID)),
 		ReadTimeout:  cfg.ReadTimeout,
 		WriteTimeout: cfg.WriteTimeout,
 	}

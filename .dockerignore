@@ -8,6 +8,7 @@
 *.log
 
 # Host-only artifacts not needed by the build
-architecture.png
-architecture.svg
-_arch_tmp.svg
+*.png
+*.jpg
+*.svg
+docs/

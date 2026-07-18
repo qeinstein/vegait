@@ -17,6 +17,12 @@ type Config struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 
+	// InstanceID identifies this gateway instance in a cluster. It is stamped
+	// onto every response as the X-Gateway-Instance header so you can see that
+	// requests are being served by different instances behind the load balancer
+	// while rate limits stay accurate (shared Redis state).
+	InstanceID string
+
 	// PostgreSQL configuration
 	PostgresHost     string
 	PostgresPort     string
@@ -50,6 +56,7 @@ func Load() *Config {
 		AdminPort:    envStr("ADMIN_PORT", "8081"),
 		ReadTimeout:  envDuration("READ_TIMEOUT_MS", 5000),
 		WriteTimeout: envDuration("WRITE_TIMEOUT_MS", 10000),
+		InstanceID:   envStr("INSTANCE_ID", defaultHostname()),
 
 		PostgresHost:     envStr("POSTGRES_HOST", "localhost"),
 		PostgresPort:     envStr("POSTGRES_PORT", "5432"),
@@ -95,6 +102,15 @@ func (c *Config) String() string {
 // Exported so other packages (e.g. tests) can reuse it.
 func GetEnv(key, fallback string) string {
 	return envStr(key, fallback)
+}
+
+// defaultHostname returns the OS hostname (the container ID under Docker), used
+// as the instance identifier when INSTANCE_ID is not set explicitly.
+func defaultHostname() string {
+	if h, err := os.Hostname(); err == nil && h != "" {
+		return h
+	}
+	return "gateway"
 }
 
 func envStr(key, fallback string) string {
