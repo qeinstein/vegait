@@ -29,14 +29,38 @@ never fully blocked.
 
 ## Quick Start
 
-### One command
+### 1. Start the stack
 
 ```bash
 ./run.sh
 ```
 
 This runs `docker compose up --build`, waits for the gateway to become healthy,
-opens the dashboard, and prints every link. Under the hood it starts a **cluster**:
+opens the dashboard, and prints every link.
+
+### 2. Run this next — the dashboard starts empty
+
+```bash
+./demo.sh
+```
+
+`docker compose` spins up a **brand-new PostgreSQL** on every fresh run (its
+data volume doesn't come from the repo), so the dashboard has nothing to show
+yet — no requests have happened. **Run `./demo.sh` right after `./run.sh`** to
+send real traffic through the gateway: it proves rate limiting works (10
+requests pass, then 429s), shows per-request latency, and populates the
+dashboard's analytics so the charts actually have data. Then refresh
+**http://localhost:8081**.
+
+(The pre-configured clients — `client-alpha/beta/gamma` — *are* seeded
+automatically on first boot, so the Clients table is never empty; it's the
+traffic-based charts that need `demo.sh` or `loadtest.sh` to have anything to
+show.)
+
+### Under the hood: a real cluster
+
+`run.sh` doesn't just start one container — it brings up two gateway
+instances behind an nginx load balancer:
 
 | Service            | Port | Description                                             |
 |--------------------|------|---------------------------------------------------------|
@@ -75,10 +99,9 @@ docker compose up -d --scale rate-limiter-1=2 --scale rate-limiter-2=2
 
 Other `run.sh` subcommands: `./run.sh logs`, `./run.sh down`, `./run.sh restart`.
 
-### See it work
+### 3. Want more data on the dashboard?
 
 ```bash
-./demo.sh        # functional walkthrough: rate limiting + per-request latencies
 ./loadtest.sh    # fire >10,000 requests and watch the dashboard update live
 ```
 
