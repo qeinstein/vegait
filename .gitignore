@@ -1,0 +1,30 @@
+# Dependencies
+**/node_modules/
+
+# Build output
+dashboard/dist/
+
+# Compiled Go binaries (built into the Docker image, not committed)
+/rate-limiter
+/loadgen
+backend/rate-limiter
+backend/loadgen
+*.test
+*.out
+coverage.*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Scratch
+_arch_tmp.svg
+*.log

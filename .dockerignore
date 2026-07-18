@@ -1,0 +1,13 @@
+# Keep the build context small and reproducible. Crucially, never ship local
+# node_modules into the image: they are platform-specific (built for the host),
+# and would clobber the linux modules installed by `npm ci` inside the builder.
+**/node_modules
+**/dist
+**/.git
+**/.DS_Store
+*.log
+
+# Host-only artifacts not needed by the build
+architecture.png
+architecture.svg
+_arch_tmp.svg

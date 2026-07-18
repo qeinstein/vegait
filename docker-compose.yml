@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rl-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ratelimiter
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: rl-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mock-api:
+    build:
+      context: ./mock-api
+      dockerfile: Dockerfile
+    container_name: rl-mock-api
+    environment:
+      MOCK_PORT: "9090"
+    ports:
+      - "9090:9090"
+
+  rate-limiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rl-service
+    environment:
+      SERVER_PORT: "8080"
+      ADMIN_PORT: "8081"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ratelimiter
+      REDIS_ADDR: "redis:6379"
+      MOCK_API_URL: "http://mock-api:9090"
+      LOG_BUFFER_SIZE: "10000"
+      LOG_FLUSH_INTERVAL_MS: "2000"
+      LOG_BATCH_SIZE: "500"
+      LOG_WORKER_COUNT: "4"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mock-api:
+        condition: service_started
+
+volumes:
+  pg_data:
