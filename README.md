@@ -17,9 +17,6 @@ Built as a technical assessment for vegaIT — see [`inst.txt`](./inst.txt) for 
 
 ![Request Flow](./sequence.png)
 
-*(The prompt used to generate these diagrams lives in
-[`docs/GEMINI_ARCHITECTURE_PROMPT.md`](./docs/GEMINI_ARCHITECTURE_PROMPT.md).)*
-
 **Request flow:** a client sends a request to the gateway with an `X-Client-ID`
 header → the gateway looks up that client's quota → runs an **atomic sliding-window
 check in Redis (Lua)** in a couple of milliseconds → if allowed, it **reverse-proxies**
@@ -234,7 +231,6 @@ curl "http://localhost:8081/api/analytics/summary?client_id=client-gamma&days=1"
 ├── docker-compose.yml · Dockerfile   # full-stack orchestration (single command)
 ├── nginx/nginx.conf                  # load balancer across the gateway cluster
 ├── architecture.{png,jpg} · sequence.{png,jpg}   # system + request-flow diagrams
-├── docs/GEMINI_ARCHITECTURE_PROMPT.md
 ├── backend/                          # Go service
 │   ├── cmd/server/main.go            # gateway + admin entrypoint
 │   ├── cmd/loadgen/main.go           # >10k load generator (New Relic-style report)
